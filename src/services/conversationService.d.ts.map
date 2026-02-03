@@ -1,0 +1,1 @@
+{"version":3,"file":"conversationService.d.ts","sourceRoot":"","sources":["conversationService.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,iBAAiB,EAAoB,MAAM,UAAU,CAAC;AAE/D,qBAAa,mBAAmB;IAC5B,OAAO,CAAC,MAAM,CAAC,MAAM,CAA6C;IAElE,MAAM,CAAC,QAAQ,CAAC,WAAW,EAAE,MAAM,GAAG,iBAAiB;IAavD,MAAM,CAAC,WAAW,CAAC,KAAK,EAAE,iBAAiB,GAAG,IAAI;CAIrD"}
