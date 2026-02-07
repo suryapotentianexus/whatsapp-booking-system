@@ -1,0 +1,50 @@
+[
+  [
+    "9999999999",
+    {
+      "phoneNumber": "9999999999",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T16:59:56.700Z"
+    }
+  ],
+  [
+    "1234567890",
+    {
+      "phoneNumber": "1234567890",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T16:59:56.700Z"
+    }
+  ],
+  [
+    "447776698495",
+    {
+      "phoneNumber": "447776698495",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T18:04:33.557Z"
+    }
+  ],
+  [
+    "919398531570",
+    {
+      "phoneNumber": "919398531570",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T16:59:56.700Z"
+    }
+  ],
+  [
+    "447435589215",
+    {
+      "phoneNumber": "447435589215",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T16:59:56.700Z"
+    }
+  ],
+  [
+    "447442678888",
+    {
+      "phoneNumber": "447442678888",
+      "currentStep": "START",
+      "updatedAt": "2026-02-07T16:59:56.700Z"
+    }
+  ]
+]

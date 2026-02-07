@@ -5,8 +5,25 @@ import { BusinessRules } from '../services/businessRules';
 import { ConversationService } from '../services/conversationService';
 import { BookingService } from '../services/bookingService';
 import { v4 as uuidv4 } from 'uuid';
+import { getServiceListDisplay, getServiceDisplayName } from '../config/services';
 
 export class MessageHandler {
+    /**
+     * Normalize greeting input by collapsing repeated letters
+     * Examples: "hiiiii" -> "hi", "heyyyy" -> "hey", "helloooo" -> "hello"
+     */
+    private static normalizeGreeting(text: string): string {
+        return text.toLowerCase().trim().replace(/(.)\1+/g, '$1');
+    }
+
+    /**
+     * Check if normalized text is a greeting
+     */
+    private static isGreeting(text: string): boolean {
+        const normalized = this.normalizeGreeting(text);
+        return ['hi', 'helo', 'hey', 'start'].includes(normalized);
+    }
+
     static handleMessage(phoneNumber: string, text: string): string {
         let state = ConversationService.getState(phoneNumber);
         const lowerText = text.toLowerCase().trim();
@@ -39,6 +56,12 @@ export class MessageHandler {
         // 2) HANDLE ASK_SERVICE STATE FIRST (NO EXCEPTIONS)
         // ------------------------------------------------
         if (state.currentStep === ConversationStep.ASK_SERVICE) {
+            // UX FIX 1: Handle greetings properly ("Hi", "Hiiiii", "Hello", etc.)
+            if (this.isGreeting(text)) {
+                // Return friendly greeting with service list
+                return this.getResponse(state);
+            }
+
             const service = KeywordDetector.detectService(text);
             if (service) {
                 state.selectedService = service;
@@ -52,12 +75,22 @@ export class MessageHandler {
                 // CRITICAL: Validate time against working hours before accepting
                 if (time) {
                     // If we have a date selected, validate the time slot
-                    if (state.selectedDate && !BusinessRules.isValidSlot(state.selectedDate, time)) {
-                        // Time is outside working hours - reject and provide helpful message
-                        const workingHours = BusinessRules.getWorkingHours();
-                        const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate);
-                        const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
-                        return `Sorry, ${time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+                    // If we have a date selected, validate the time slot
+                    if (state.selectedDate) {
+                        const validation = BusinessRules.isValidSlot(state.selectedDate, time, BookingService.getBookings());
+                        if (!validation.valid) {
+                            const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate);
+                            const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
+
+                            if (validation.reason === 'PAST_TIME') {
+                                return `Sorry, ${time} has already passed today.\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a future time.`;
+                            } else if (validation.reason === 'ALREADY_BOOKED') {
+                                return `Sorry, that time slot is already booked. Please choose another time.`;
+                            } else {
+                                const workingHours = BusinessRules.getWorkingHours();
+                                return `Sorry, ${time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+                            }
+                        }
                     }
                     state.selectedTime = time;
                 }
@@ -75,7 +108,8 @@ export class MessageHandler {
                 return this.getResponse(state);
             } else {
                 // Respond with service clarification message and RETURN
-                return "Sorry, I didn't catch that 😊\nPlease reply with:\n1️⃣ Plumbing\n2️⃣ Electrical\n3️⃣ General Inspection";
+                const serviceList = getServiceListDisplay();
+                return `Sorry, I didn't catch that 😊\nPlease reply with:\n${serviceList}`;
             }
         }
 
@@ -109,12 +143,22 @@ export class MessageHandler {
         // CRITICAL: Validate time against working hours before accepting
         if (shortcuts.time) {
             // If we have a date selected, validate the time slot
-            if (state.selectedDate && !BusinessRules.isValidSlot(state.selectedDate, shortcuts.time)) {
-                // Time is outside working hours - reject and provide helpful message
-                const workingHours = BusinessRules.getWorkingHours();
-                const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate);
-                const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
-                return `Sorry, ${shortcuts.time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+            // If we have a date selected, validate the time slot
+            if (state.selectedDate) {
+                const validation = BusinessRules.isValidSlot(state.selectedDate, shortcuts.time, BookingService.getBookings());
+                if (!validation.valid) {
+                    const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate);
+                    const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
+
+                    if (validation.reason === 'PAST_TIME') {
+                        return `Sorry, ${shortcuts.time} has already passed today.\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a future time.`;
+                    } else if (validation.reason === 'ALREADY_BOOKED') {
+                        return `Sorry, that time slot is already booked. Please choose another time.`;
+                    } else {
+                        const workingHours = BusinessRules.getWorkingHours();
+                        return `Sorry, ${shortcuts.time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+                    }
+                }
             }
             state.selectedTime = shortcuts.time;
             shortcutTriggered = true;
@@ -155,22 +199,33 @@ export class MessageHandler {
                     ConversationService.updateState(state);
                     return this.getResponse(state);
                 } else {
-                    return "Sorry, I didn't catch that date. You can say 'Tomorrow', 'Monday', or a date like '25/01'.";
+                    // ISSUE 2 FIX: Dynamic future-safe date examples
+                    return "Sorry, I didn't catch that date. You can say 'Today', 'Tomorrow', or 'In 3 days'.";
                 }
 
             case ConversationStep.ASK_TIME:
                 const time = KeywordDetector.detectTime(text);
                 if (time) {
-                    if (BusinessRules.isValidSlot(state.selectedDate!, time)) {
+                    const validation = BusinessRules.isValidSlot(state.selectedDate!, time, BookingService.getBookings());
+                    if (validation.valid) {
                         state.selectedTime = time;
                         state.currentStep = ConversationStep.CONFIRMATION;
                         ConversationService.updateState(state);
                         return this.getResponse(state);
                     } else {
-                        const workingHours = BusinessRules.getWorkingHours();
                         const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate!);
                         const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
-                        return `Sorry, ${time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+
+                        if (validation.reason === 'PAST_TIME') {
+                            // ISSUE 4 FIX: Stay in ASK_TIME state, preserve date context
+                            return `Sorry, ${time} has already passed today.\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a future time.`;
+                        } else if (validation.reason === 'ALREADY_BOOKED') {
+                            // ISSUE 4 FIX: Stay in ASK_TIME state, preserve date context
+                            return `Sorry, that time slot is already booked. Please choose another time.`;
+                        } else {
+                            const workingHours = BusinessRules.getWorkingHours();
+                            return `Sorry, ${time} is outside our working hours (${workingHours}).\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nPlease choose a time within working hours.`;
+                        }
                     }
                 } else {
                     return "Please reply with a valid time (e.g., 10:00, 2pm).";
@@ -191,9 +246,17 @@ export class MessageHandler {
                     ConversationService.updateState(state);
                     return this.getResponse(state);
                 } else if (lowerText === 'no' || lowerText === 'n') {
-                    state.currentStep = ConversationStep.CANCELLED;
+                    // ISSUE 3 FIX: Preserve service and date, go back to time selection
+                    // Do NOT clear service or date - user can pick a different time
+                    state.currentStep = ConversationStep.ASK_TIME;
+                    state.selectedTime = undefined; // Clear only the time
                     ConversationService.updateState(state);
-                    return this.getResponse(state);
+
+                    // Show available slots for the same service and date
+                    const serviceName = getServiceDisplayName(state.selectedService!);
+                    const availableSlots = BusinessRules.getAvailableSlots(state.selectedDate!);
+                    const slotsDisplay = availableSlots.slice(0, 3).map(s => `• ${s}`).join('\n');
+                    return `No problem 👍 Please choose another time for ${serviceName} on ${state.selectedDate}.\n\nAvailable time slots:\n${slotsDisplay}\n...\n\nReply with a time.`;
                 } else {
                     return this.getResponse(state);
                 }
@@ -216,18 +279,32 @@ export class MessageHandler {
     private static getResponse(state: ConversationState): string {
         switch (state.currentStep) {
             case ConversationStep.ASK_SERVICE:
-                return "Hi 👋\nI can help you book an appointment.\n\nWhat service do you need?\n1️⃣ Plumbing\n2️⃣ Electrical\n3️⃣ General Inspection\n\nReply with the number.";
+                // Read garage services from config (configuration-driven display)
+                const serviceList = getServiceListDisplay();
+                return `Hi 👋\nI can help you book an appointment.\n\nWhat service do you need?\n${serviceList}\n\nReply with the number.`;
+
 
             case ConversationStep.ASK_DATE:
-                return `Great 👍\nWhen would you like to book for ${state.selectedService}?\n\nYou can reply like:\n• Today\n• Tomorrow\n• 25 Jan`;
+                // Use garage service display name from config
+                const serviceName = getServiceDisplayName(state.selectedService!);
+                // UX FIX 2: Dynamic future-safe date examples
+                const today = new Date();
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+                const inTwoDays = new Date(today);
+                inTwoDays.setDate(today.getDate() + 2);
+                return `Great 👍\nWhen would you like to book for ${serviceName}?\n\nYou can reply like:\n• Today\n• Tomorrow\n• In 2 days`;
 
             case ConversationStep.ASK_TIME:
                 const slots = BusinessRules.getAvailableSlots(state.selectedDate!);
                 const slotsDisplay = slots.slice(0, 3).map(s => `• ${s}`).join('\n');
                 return `Perfect.\n\nAvailable time slots on ${state.selectedDate}:\n${slotsDisplay}\n...\n\nReply with a time.`;
 
+
             case ConversationStep.CONFIRMATION:
-                return `Please confirm your booking 👇\n\nService: ${state.selectedService}\nDate: ${state.selectedDate}\nTime: ${state.selectedTime}\n\nReply YES to confirm or NO to cancel.`;
+                // Use garage service display name from config
+                const confirmServiceName = getServiceDisplayName(state.selectedService!);
+                return `Please confirm your booking 👇\n\nService: ${confirmServiceName}\nDate: ${state.selectedDate}\nTime: ${state.selectedTime}\n\nReply YES to confirm or NO to cancel.`;
 
             case ConversationStep.COMPLETED:
                 return `✅ Your appointment is confirmed!\n\nWe’ll see you on ${state.selectedDate} at ${state.selectedTime}.\nThank you 😊`;

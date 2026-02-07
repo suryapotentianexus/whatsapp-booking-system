@@ -28,6 +28,7 @@ export interface Booking {
   customerPhone: string;
   status: BookingStatus;
   createdAt: Date;
+  reminderSent?: boolean; // Flag to track if reminder has been sent
 }
 
 export interface ConversationState {
