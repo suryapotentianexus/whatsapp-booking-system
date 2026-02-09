@@ -4,7 +4,7 @@
     {
       "phoneNumber": "9999999999",
       "currentStep": "START",
-      "updatedAt": "2026-02-07T16:59:56.700Z"
+      "updatedAt": "2026-02-09T02:24:50.632Z"
     }
   ],
   [
@@ -12,15 +12,18 @@
     {
       "phoneNumber": "1234567890",
       "currentStep": "START",
-      "updatedAt": "2026-02-07T16:59:56.700Z"
+      "updatedAt": "2026-02-09T02:24:50.632Z"
     }
   ],
   [
     "447776698495",
     {
       "phoneNumber": "447776698495",
-      "currentStep": "START",
-      "updatedAt": "2026-02-07T18:04:33.557Z"
+      "currentStep": "COMPLETED",
+      "updatedAt": "2026-02-09T03:55:53.826Z",
+      "selectedDate": "2026-02-09",
+      "selectedTime": "10:00",
+      "selectedService": "Plumbing"
     }
   ],
   [
@@ -28,7 +31,7 @@
     {
       "phoneNumber": "919398531570",
       "currentStep": "START",
-      "updatedAt": "2026-02-07T16:59:56.700Z"
+      "updatedAt": "2026-02-09T02:24:50.632Z"
     }
   ],
   [
@@ -36,7 +39,7 @@
     {
       "phoneNumber": "447435589215",
       "currentStep": "START",
-      "updatedAt": "2026-02-07T16:59:56.700Z"
+      "updatedAt": "2026-02-09T02:24:50.632Z"
     }
   ],
   [
@@ -44,7 +47,7 @@
     {
       "phoneNumber": "447442678888",
       "currentStep": "START",
-      "updatedAt": "2026-02-07T16:59:56.700Z"
+      "updatedAt": "2026-02-09T02:24:50.632Z"
     }
   ]
 ]

@@ -46,6 +46,24 @@ export class MessageHandler {
             if (lowerText === 'help') {
                 return "I can help you book an appointment. You can say 'Restart' to start over or 'Cancel' to stop.";
             }
+
+            // CENTRALIZED CANCELLATION PATH 1: Global CANCEL command
+            if (lowerText === 'cancel') {
+                // Cancel any active booking in persistence
+                const cancelled = BookingService.cancelBooking(phoneNumber);
+
+                // Update conversation state
+                const next = StateMachine.getNextStep(state, lowerText);
+                state = { ...state, ...next };
+                ConversationService.updateState(state);
+
+                if (cancelled) {
+                    return "No problem 👍 Your booking has been cancelled.";
+                } else {
+                    return "No problem 👍";
+                }
+            }
+
             const next = StateMachine.getNextStep(state, lowerText);
             state = { ...state, ...next };
             ConversationService.updateState(state);
